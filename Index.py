@@ -8,8 +8,9 @@
 # git remote add origin https://github.com/Carmen-Juan/Bolitas_Python.git
 # git branch -M main
 # git push -u origin main
+# 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
+# https://bolitaspython.streamlit.app
 # https://docs.google.com/spreadsheets/d/1bAFWEitjrv7HXjD03t9kmXhGPwd1NOZoZGvtLBM5JMk/edit?gid=438199380#gid=438199380
-# https://docs.google.com/spreadsheets/d/1bAFWEitjrv7HXjD03t9kmXhGPwd1NOZoZGvtLBM5JMk/edit?usp=sharing
 # open -e .streamlit/secrets.toml
 
 import streamlit as st
@@ -21,12 +22,6 @@ from datetime import datetime
 import streamlit.components.v1 as components
 from streamlit_gsheets import GSheetsConnection
 
-# ==========================================
-# 0. CONFIGURACIÓN GLOBAL
-# ==========================================
-# URL EXACTA DE TU HOJA DE GOOGLE SHEETS
-# Asegúrate de compartir esta hoja con el correo de tu Service Account (ver instrucciones abajo)
-SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1bAFWEitjrv7HXjD03t9kmXhGPwd1NOZoZGvtLBM5JMk/edit?gid=438199380#gid=438199380"
 
 # ==========================================
 # 1. CONFIGURACIÓN DE PANTALLA
@@ -106,37 +101,38 @@ def guardar_local(datos):
     df.to_csv(nombre_archivo, mode='a', header=not os.path.exists(nombre_archivo), index=False)
     st.info(f"Aviso: Datos guardados localmente (CSV). Error de conexión.")
 
-# --- FUNCIÓN CORREGIDA PARA USAR URL ESPECÍFICA ---
 def guardar_en_gsheets(datos):
     """
-    Intenta guardar en Google Sheets usando la URL específica.
+    Guarda los resultados en Google Sheets usando las credenciales de Secrets.
     """
     try:
-        # Creamos la conexión
+        # 1. Creamos la conexión (usa automáticamente el bloque [connections.gsheets] de tus Secrets)
         conn = st.connection("gsheets", type=GSheetsConnection)
         
-        # Leemos los datos existentes ESPECIFICANDO LA HOJA
+        # 2. Intentamos leer los datos actuales para no borrar lo que ya hay
         try:
-            existing_data = conn.read(spreadsheet=SPREADSHEET_URL, ttl=0)
+            # No pasamos la URL aquí; la librería la busca en st.secrets["connections"]["gsheets"]["spreadsheet"]
+            existing_data = conn.read(ttl=0) 
             if existing_data is None:
                 existing_data = pd.DataFrame()
         except Exception:
-            # Si la hoja está vacía o hay error de lectura inicial
+            # Si el Excel está vacío o es la primera vez, empezamos con un DataFrame vacío
             existing_data = pd.DataFrame()
 
-        # Convertimos el diccionario de datos nuevos a DataFrame
+        # 3. Preparamos los nuevos datos
         new_data = pd.DataFrame([datos])
         
-        # Unimos los datos viejos con los nuevos
+        # 4. Concatenamos (unimos) los datos viejos con la nueva fila
         updated_data = pd.concat([existing_data, new_data], ignore_index=True)
         
-        # Escribimos de vuelta a la HOJA ESPECÍFICA
-        conn.update(spreadsheet=SPREADSHEET_URL, data=updated_data)
-        st.success("¡Datos enviados correctamente a la nube!")
+        # 5. Subimos el archivo actualizado a Google Sheets
+        conn.update(data=updated_data)
+        
+        st.success("¡Datos enviados correctamente a Google Sheets! 🚀")
         
     except Exception as e:
-        st.error(f"Error conectando con Google Sheets: {e}")
-        # Si falla, usamos el backup local
+        # Si algo falla (internet, permisos, etc.), mostramos el error y guardamos en local como backup
+        st.error(f"Error crítico conectando con Google Sheets: {e}")
         guardar_local(datos)
 
 # ==========================================
