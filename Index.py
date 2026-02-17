@@ -3,11 +3,9 @@
 # pip install st-gsheets-connection
 # streamlit run Index.py
 # git init
-# git add .
-# git commit -m "Primera versión del experimento"
-# git remote add origin https://github.com/Carmen-Juan/Bolitas_Python.git
-# git branch -M main
-# git push -u origin main
+# git add Index.py
+# git commit -m "Finalizando conexion con gsheets"
+# git push origin main
 # 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
 # https://bolitaspython.streamlit.app
 # https://docs.google.com/spreadsheets/d/1bAFWEitjrv7HXjD03t9kmXhGPwd1NOZoZGvtLBM5JMk/edit?gid=438199380#gid=438199380
@@ -102,38 +100,30 @@ def guardar_local(datos):
     st.info(f"Aviso: Datos guardados localmente (CSV). Error de conexión.")
 
 def guardar_en_gsheets(datos):
-    """
-    Guarda los resultados en Google Sheets usando las credenciales de Secrets.
-    """
     try:
-        # 1. Creamos la conexión (usa automáticamente el bloque [connections.gsheets] de tus Secrets)
         conn = st.connection("gsheets", type=GSheetsConnection)
         
-        # 2. Intentamos leer los datos actuales para no borrar lo que ya hay
         try:
-            # No pasamos la URL aquí; la librería la busca en st.secrets["connections"]["gsheets"]["spreadsheet"]
-            existing_data = conn.read(ttl=0) 
+            existing_data = conn.read(ttl=0)
             if existing_data is None:
                 existing_data = pd.DataFrame()
-        except Exception:
-            # Si el Excel está vacío o es la primera vez, empezamos con un DataFrame vacío
+        except Exception as e:
+            # Si falla al leer, que nos diga por qué en pantalla
+            st.warning(f"Aviso al leer: {e}")
             existing_data = pd.DataFrame()
 
-        # 3. Preparamos los nuevos datos
         new_data = pd.DataFrame([datos])
-        
-        # 4. Concatenamos (unimos) los datos viejos con la nueva fila
         updated_data = pd.concat([existing_data, new_data], ignore_index=True)
         
-        # 5. Subimos el archivo actualizado a Google Sheets
         conn.update(data=updated_data)
-        
-        st.success("¡Datos enviados correctamente a Google Sheets! 🚀")
+        st.success("¡Datos enviados correctamente!")
         
     except Exception as e:
-        # Si algo falla (internet, permisos, etc.), mostramos el error y guardamos en local como backup
-        st.error(f"Error crítico conectando con Google Sheets: {e}")
+        # ESTA ES LA PARTE IMPORTANTE:
+        # Si hay un fallo de permisos o de clave, saldrá en ROJO en la app
+        st.error(f"FALLO CRÍTICO DE CONEXIÓN: {e}")
         guardar_local(datos)
+        
 
 # ==========================================
 # 3. FLUJO DEL EXPERIMENTO
