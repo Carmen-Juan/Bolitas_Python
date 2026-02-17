@@ -102,28 +102,26 @@ def guardar_local(datos):
 def guardar_en_gsheets(datos):
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
-        
         try:
             existing_data = conn.read(ttl=0)
             if existing_data is None:
                 existing_data = pd.DataFrame()
         except Exception as e:
-            # Si falla al leer, que nos diga por qué en pantalla
             st.warning(f"Aviso al leer: {e}")
             existing_data = pd.DataFrame()
 
         new_data = pd.DataFrame([datos])
         updated_data = pd.concat([existing_data, new_data], ignore_index=True)
-        
         conn.update(data=updated_data)
         st.success("¡Datos enviados correctamente!")
+        return True # Añadimos esto para saber que fue bien
         
-        except Exception as e:
+    except Exception as e:
         st.error(f"FALLO CRÍTICO: {e}")
-        st.session_state['error_gsheets'] = str(e) # Guardamos el error para que no haga rerun
+        st.session_state['error_gsheets'] = str(e)
         guardar_local(datos)
+        return False 
         
-
 # ==========================================
 # 3. FLUJO DEL EXPERIMENTO
 # ==========================================
@@ -255,21 +253,20 @@ elif st.session_state.paso == 'CUESTIONARIO':
         
         # Al pulsar el botón, creamos los datos y enviamos
         if st.button("FINALIZAR Y ENVIAR"):
-        datos_finales = {
-            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Genero": st.session_state.genero,
-            "Aciertos": sum(st.session_state.aciertos),
-            "Regla": regla
-        }
-        
-        # Intentamos guardar
-        exito = guardar_en_gsheets(datos_finales)
-        
-        # Solo si NO hubo un error crítico, pasamos a la pantalla de FIN
-        # Si hubo error, nos quedamos en esta pantalla para leerlo
-        if st.session_state.get('error_gsheets') is None:
-            st.session_state.paso = 'FIN'
-            st.rerun()
+            datos_finales = {
+                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "Genero": st.session_state.genero,
+                "Aciertos": sum(st.session_state.aciertos),
+                "Regla": regla
+            }
+            
+            # Intentamos guardar y guardamos el resultado en 'exito'
+            exito = guardar_en_gsheets(datos_finales)
+            
+            # Si exito es True, entonces pasamos a la pantalla final
+            if exito:
+                st.session_state.paso = 'FIN'
+                st.rerun()
             
 
 # --- PANTALLA 5: DESPEDIDA ---
