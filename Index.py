@@ -118,10 +118,9 @@ def guardar_en_gsheets(datos):
         conn.update(data=updated_data)
         st.success("¡Datos enviados correctamente!")
         
-    except Exception as e:
-        # ESTA ES LA PARTE IMPORTANTE:
-        # Si hay un fallo de permisos o de clave, saldrá en ROJO en la app
-        st.error(f"FALLO CRÍTICO DE CONEXIÓN: {e}")
+        except Exception as e:
+        st.error(f"FALLO CRÍTICO: {e}")
+        st.session_state['error_gsheets'] = str(e) # Guardamos el error para que no haga rerun
         guardar_local(datos)
         
 
@@ -256,18 +255,19 @@ elif st.session_state.paso == 'CUESTIONARIO':
         
         # Al pulsar el botón, creamos los datos y enviamos
         if st.button("FINALIZAR Y ENVIAR"):
-            datos_finales = {
-                "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "Genero": st.session_state.genero,
-                #"Experimento": st.session_state.exp_type,
-                "Aciertos": sum(st.session_state.aciertos),
-                "Regla": regla
-                #"Regla_Estática": regla,
-                #"Regla_Dinámica": "nada"
-            }
-            # LLAMADA A LA FUNCIÓN QUE FALTABA
-            guardar_en_gsheets(datos_finales)
-            
+        datos_finales = {
+            "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Genero": st.session_state.genero,
+            "Aciertos": sum(st.session_state.aciertos),
+            "Regla": regla
+        }
+        
+        # Intentamos guardar
+        exito = guardar_en_gsheets(datos_finales)
+        
+        # Solo si NO hubo un error crítico, pasamos a la pantalla de FIN
+        # Si hubo error, nos quedamos en esta pantalla para leerlo
+        if st.session_state.get('error_gsheets') is None:
             st.session_state.paso = 'FIN'
             st.rerun()
             
